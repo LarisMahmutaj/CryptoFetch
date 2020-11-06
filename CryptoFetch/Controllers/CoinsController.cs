@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace CryptoFetch.Controllers {
     [Authorize]
@@ -37,7 +38,7 @@ namespace CryptoFetch.Controllers {
                     return assetList;
                 }
             }catch(Exception e) {
-                return NotFound("There was a problem with fetching the coins. Please check your internet connection and try again later.");
+                return NotFound($"Error: {e}");
             }
 
             return BadRequest();
@@ -46,11 +47,16 @@ namespace CryptoFetch.Controllers {
         [HttpGet("{id}")]
         public async Task<ActionResult<Coin>> GetCoin(string id) {
             var client = _clientFactory.CreateClient();
-            HttpResponseMessage response = await client.GetAsync($"https://api.coincap.io/v2/assets/{id}");
+            try{
+                var response = await client.GetAsync($"https://api.coincap.io/v2/assets/{id}");
 
-            if (response.IsSuccessStatusCode) {
-                var asset = response.Content.ReadFromJsonAsync<Asset>().Result.data;
-                return asset;
+                if (response.IsSuccessStatusCode) {
+                    var asset = response.Content.ReadFromJsonAsync<Asset>().Result.data;
+                    return asset;
+                }
+
+            }catch(Exception e) {
+                return NotFound($"Error: {e}");
             }
 
             return BadRequest();
@@ -68,26 +74,32 @@ namespace CryptoFetch.Controllers {
         [HttpPost("favourites")]
         public async Task<ActionResult<Favourite>> MarkFavourite([FromBody] string id) {
             var client = _clientFactory.CreateClient();
-            var response = await client.GetAsync($"https://api.coincap.io/v2/assets/{id}");
+            try {
+                var response = await client.GetAsync($"https://api.coincap.io/v2/assets/{id}");
 
-            if (response.IsSuccessStatusCode) {
-                var asset = response.Content.ReadFromJsonAsync<Asset>().Result.data;
-                if(asset == null) {
-                    return NotFound();
+                if (response.IsSuccessStatusCode) {
+                    var asset = response.Content.ReadFromJsonAsync<Asset>().Result.data;
+                    if(asset == null) {
+                        return NotFound();
+                    }
+                    Favourite fav = new Favourite
+                    {
+                        CoinId = id,
+                        UserEmail = _httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.Email).Value
+                    };
+
+                    if(_context.Favourites.Any(x => x.CoinId == fav.CoinId && x.UserEmail == fav.UserEmail)) {
+                        return BadRequest();
+                    }
+
+                    _context.Favourites.Add(fav);
+                    await _context.SaveChangesAsync();
+                    return Ok(fav);
                 }
-                Favourite fav = new Favourite
-                {
-                    CoinId = id,
-                    UserEmail = _httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.Email).Value
-                };
 
-                if(_context.Favourites.Any(x => x.CoinId == fav.CoinId && x.UserEmail == fav.UserEmail)) {
-                    return BadRequest();
-                }
-
-                _context.Favourites.Add(fav);
-                await _context.SaveChangesAsync();
-                return Ok(fav);
+            }
+            catch (Exception e) {
+                return NotFound($"Error: {e}");
             }
 
             return BadRequest();
