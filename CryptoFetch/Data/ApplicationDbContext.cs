@@ -8,5 +8,6 @@ namespace CryptoFetch.Data
 
         public DbSet<User> Users { get; set; }
         public DbSet<Favourite> Favourites { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using CryptoFetch.Data;
+using CryptoFetch.Helpers;
 using CryptoFetch.Interfaces;
 using CryptoFetch.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -51,7 +52,9 @@ namespace CryptoFetch
                 };
             });
 
-            services.AddSingleton<IJwtAuthManager>(new JwtAuthManager(key));
+            services.AddSingleton<ITokenRefresher>(x => new TokenRefresher(key, x.GetService<IJwtAuthManager>(), x.GetService<IServiceScopeFactory>()));
+            services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
+            services.AddSingleton<IJwtAuthManager>(x => new JwtAuthManager(key, x.GetService<IRefreshTokenGenerator>(), x.GetService<IServiceScopeFactory>()));
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
         }

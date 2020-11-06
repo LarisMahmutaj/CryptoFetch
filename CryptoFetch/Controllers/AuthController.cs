@@ -21,10 +21,12 @@ namespace CryptoFetch.Controllers {
 
         private readonly ApplicationDbContext _context;
         private readonly IJwtAuthManager _jwtAuthManager;
+        private readonly ITokenRefresher _tokenRefresher;
 
-        public AuthController(ApplicationDbContext context, IJwtAuthManager jwtAuthManager) {
+        public AuthController(ApplicationDbContext context, IJwtAuthManager jwtAuthManager, ITokenRefresher tokenRefresher) {
             _context = context;
             _jwtAuthManager = jwtAuthManager;
+            _tokenRefresher = tokenRefresher;
         }
         
         [HttpGet]
@@ -43,12 +45,22 @@ namespace CryptoFetch.Controllers {
             }
 
             if(user.Password == credentials.Password) {
-                var token = _jwtAuthManager.Authenticate(credentials.Email);
+                var token = await _jwtAuthManager.Authenticate(credentials.Email);
                 return Ok(token);
             }
             else {
                 return Unauthorized();
             }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshCredentials refreshCredentials) {
+            var token = await _tokenRefresher.Refresh(refreshCredentials);
+            if(token == null) {
+                return Unauthorized();
+            }
+            return Ok(token);
         }
     }
 }

@@ -6,5 +6,6 @@ using System.Threading.Tasks;
 namespace CryptoFetch.Models {
     public class AuthenticationResponse {
         public string JwtToken { get; set; }
+        public string RefreshToken { get; set; }
     }
 }
